@@ -28,6 +28,7 @@ import base64
 from cryptography.fernet import Fernet
 from django.conf import settings
 from django.shortcuts import get_object_or_404
+import cloudinary.uploader 
 
 from .models import Student, Class, Teacher, School, Grade, Term, Subject, PerformanceRecord, Student
 from .serializers import (
@@ -1048,81 +1049,114 @@ def student_performance_summary(request, student_id):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def generate_qr_code(request, student_id):
-    """
-    POST /api/students/{student_id}/generate-qr/
-    
-    Generate QR code for a student
-    """
+    """Generate QR code and upload to Cloudinary"""
     try:
         student = Student.objects.get(pk=student_id)
-    except Student.DoesNotExist:
-        return Response(
-            {
-                'success': False,
-                'error': 'Student not found'
-            },
-            status=status.HTTP_404_NOT_FOUND
+        
+        # Create QR data
+        qr_data = {
+            'student_id': student.id,
+            'admission_number': student.admission_number,
+            'timestamp': str(timezone.now())
+        }
+        
+        # Encode to base64
+        qr_string = json.dumps(qr_data)
+        encrypted_data = base64.b64encode(qr_string.encode()).decode()
+        
+        # Generate QR code image
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
         )
-    
-    # Create QR data (encrypted)
-    qr_data = {
-        'student_id': student.id,
-        'admission_number': student.admission_number,
-        'timestamp': str(timezone.now())
-    }
-    
-    # Convert to JSON string
-    qr_string = json.dumps(qr_data)
-    
-    # Encrypt the data (simple base64 for MVP, use proper encryption in production)
-    encrypted_data = base64.b64encode(qr_string.encode()).decode()
-    
-    # Generate QR code image
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(encrypted_data)
-    qr.make(fit=True)
-    
-    img = qr.make_image(fill_color="black", back_color="white")
-    
-    # Save to BytesIO
-    buffer = BytesIO()
-    img.save(buffer, format='PNG')
-    buffer.seek(0)
-    
-    # Save to student model
-    file_name = f'qr_{student.admission_number}.png'
-    student.qr_code = encrypted_data
-    student.qr_code_image.save(file_name, ContentFile(buffer.read()), save=False)
-    student.save()  # CRITICAL: Save to database
-    
-    # Refresh from database to ensure it was saved
-    student.refresh_from_db()
-    
-    # Log success
-    print(f"✅ QR Generated and Saved: {student.full_name}")
-    print(f"   - QR Code exists: {bool(student.qr_code)}")
-    print(f"   - QR Image exists: {bool(student.qr_code_image)}")
-    print(f"   - QR Image path: {student.qr_code_image.name if student.qr_code_image else 'None'}")
-    
-    return Response(
-        {
+        qr.add_data(encrypted_data)
+        qr.make(fit=True)
+        
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        # Save to BytesIO buffer
+        buffer = BytesIO()
+        img.save(buffer, format='PNG')
+        buffer.seek(0)
+        
+        # File name
+        file_name = f'qr_{student.admission_number}.png'
+        
+        # Upload to Cloudinary (if configured)
+        from django.conf import settings
+        if hasattr(settings, 'CLOUDINARY_STORAGE') and settings.CLOUDINARY_STORAGE.get('CLOUD_NAME'):
+            try:
+                # Upload to Cloudinary
+                upload_result = cloudinary.uploader.upload(
+                    buffer,
+                    folder='qr_codes',
+                    public_id=f'qr_{student.admission_number}',
+                    overwrite=True,
+                    resource_type='image'
+                )
+                
+                # Save Cloudinary URL to student
+                student.qr_code = encrypted_data
+                student.qr_code_image = upload_result['secure_url']
+                student.save()
+                
+                print(f"✅ QR uploaded to Cloudinary: {student.full_name}")
+                
+                return Response({
+                    'success': True,
+                    'message': 'QR code generated and uploaded to cloud',
+                    'data': {
+                        'student_id': student.id,
+                        'admission_number': student.admission_number,
+                        'full_name': student.full_name,
+                        'qr_code_data': student.qr_code,
+                        'qr_code_image_url': student.qr_code_image,
+                    }
+                }, status=status.HTTP_200_OK)
+                
+            except Exception as cloudinary_error:
+                print(f"❌ Cloudinary upload failed: {cloudinary_error}")
+                # Fallback to local storage
+                pass
+        
+        # Fallback: Save locally if Cloudinary not configured
+        buffer.seek(0)
+        student.qr_code = encrypted_data
+        student.qr_code_image.save(file_name, ContentFile(buffer.read()), save=False)
+        student.save()
+        
+        student.refresh_from_db()
+        
+        print(f"✅ QR saved locally: {student.full_name}")
+        
+        return Response({
             'success': True,
             'message': 'QR code generated successfully',
             'data': {
                 'student_id': student.id,
                 'admission_number': student.admission_number,
                 'full_name': student.full_name,
-                'qr_code_data': encrypted_data,
-                'qr_code_image_url': student.qr_code_image.url if student.qr_code_image else None
+                'qr_code_data': student.qr_code,
+                'qr_code_image_url': student.qr_code_image.url if student.qr_code_image else None,
             }
-        },
-        status=status.HTTP_200_OK
-    )
+        }, status=status.HTTP_200_OK)
+        
+    except Student.DoesNotExist:
+        return Response({
+            'success': False,
+            'error': 'Student not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+        
+    except Exception as e:
+        import traceback
+        print(f"❌ Error generating QR: {e}")
+        traceback.print_exc()
+        return Response({
+            'success': False,
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['POST'])
