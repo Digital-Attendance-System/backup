@@ -134,6 +134,15 @@ USE_TZ = True
 # Static files
 STATIC_URL = 'static/'
 
+# The absolute path to the directory where collectstatic will collect static files for deployment
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Additional locations the staticfiles app will traverse
+# Create a 'static' folder in your project root if you want to add custom static files
+STATICFILES_DIRS = [
+    # BASE_DIR / 'static',  # Uncomment if you have a static folder
+]
+
 # Media files (for QR code images)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
