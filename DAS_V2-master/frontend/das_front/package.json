@@ -9,11 +9,17 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.9",
+    "@heroicons/react": "^2.2.0",
     "@yudiel/react-qr-scanner": "^2.5.1",
+    "axios": "^1.14.0",
+    "chart.js": "^4.5.1",
     "html5-qrcode": "^2.3.8",
     "next": "16.1.6",
     "react": "19.2.3",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "19.2.3",
+    "react-hot-toast": "^2.6.0",
     "recharts": "^3.8.0"
   },
   "devDependencies": {
