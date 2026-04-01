@@ -17,14 +17,14 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'backup-ozj7.onrender.com',
+        hostname: 'https://backup-1-hjqt.onrender.com/',
         port: '',
         pathname: '/**',
       },
       // Also add your actual backend URL if different
       {
         protocol: 'https',
-        hostname: 'backup-oz7.onrender.com',  // Note: your error log showed oz7, not ozj7
+        hostname: 'https://backup-1-hjqt.onrender.com',  // Note: your error log showed oz7, not ozj7
         port: '',
         pathname: '/**',
       },
