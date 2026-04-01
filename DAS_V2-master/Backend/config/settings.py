@@ -173,11 +173,16 @@ CORS_ALLOW_HEADERS = [
 ]
 
 # ==================== CSRF & SESSION CONFIGURATION ====================
+CORS_ALLOWED_ORIGINS = [
+    "https://backup-1-hjqt.onrender.com",
+    "http://localhost:3000",  # For local development
+]
+
 CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:3000',
+    "https://backup-1-hjqt.onrender.com",
+    "http://localhost:3000",
     'http://127.0.0.1:3000',
     'http://192.168.56.1:3000',
-    'http://*',  # Allow all for testing
 ]
 
 CSRF_COOKIE_SECURE = False
