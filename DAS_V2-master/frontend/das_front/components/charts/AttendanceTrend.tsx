@@ -33,8 +33,8 @@ export function AttendanceTrendChart({ data }: AttendanceTrendChartProps) {
     border: '1px solid #e5e7eb',
     borderRadius: '8px',
   }}
-  formatter={(value: number | undefined) => {
-    if (value === undefined) return ['N/A', 'Attendance'];
+  formatter={(value) => {
+    if (value === undefined || value === null) return ['N/A', 'Attendance'];
     return [`${value}%`, 'Attendance'];
   }}
 />
